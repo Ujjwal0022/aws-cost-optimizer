@@ -1,0 +1,220 @@
+kube-prometheus-stack:
+
+  # ── Namespace ──────────────────────────────────────────────
+  namespaceOverride: monitoring
+
+  # ── Prometheus ─────────────────────────────────────────────
+  prometheus:
+    prometheusSpec:
+      retention: 15d
+      storageSpec:
+        volumeClaimTemplate:
+          spec:
+            accessModes: ["ReadWriteOnce"]
+            resources:
+              requests:
+                storage: 20Gi
+
+      # Scrape finops namespace pods automatically
+      additionalScrapeConfigs:
+        - job_name: finops-backend
+          kubernetes_sd_configs:
+            - role: pod
+              namespaces:
+                names: [finops]
+          relabel_configs:
+            - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+              action: keep
+              regex: "true"
+            - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+              action: replace
+              target_label: __metrics_path__
+              regex: (.+)
+            - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+              action: replace
+              regex: ([^:]+)(?::\d+)?;(\d+)
+              replacement: $1:$2
+              target_label: __address__
+            - source_labels: [__meta_kubernetes_namespace]
+              target_label: namespace
+            - source_labels: [__meta_kubernetes_pod_name]
+              target_label: pod
+
+    service:
+      type: ClusterIP
+
+  # ── Grafana ────────────────────────────────────────────────
+  grafana:
+    enabled: true
+    adminPassword: "finops-admin-2024"   # Change in prod!
+
+    service:
+      type: ClusterIP
+
+    ingress:
+      enabled: true
+      annotations:
+        kubernetes.io/ingress.class: alb
+        alb.ingress.kubernetes.io/scheme: internet-facing
+        alb.ingress.kubernetes.io/target-type: ip
+        alb.ingress.kubernetes.io/group.name: finops
+      path: /grafana
+      pathType: Prefix
+
+    grafana.ini:
+      server:
+        root_url: "%(protocol)s://%(domain)s/grafana"
+        serve_from_sub_path: true
+
+    # Pre-built dashboards
+    dashboardProviders:
+      dashboardproviders.yaml:
+        apiVersion: 1
+        providers:
+          - name: finops
+            orgId: 1
+            folder: FinOps
+            type: file
+            options:
+              path: /var/lib/grafana/dashboards/finops
+
+    dashboards:
+      finops:
+        kubernetes-cluster:
+          gnetId: 7249
+          revision: 1
+          datasource: Prometheus
+        kubernetes-pods:
+          gnetId: 6336
+          revision: 1
+          datasource: Prometheus
+        node-exporter:
+          gnetId: 1860
+          revision: 37
+          datasource: Prometheus
+
+    # Datasources
+    datasources:
+      datasources.yaml:
+        apiVersion: 1
+        datasources:
+          - name: Prometheus
+            type: prometheus
+            url: http://finops-monitoring-kube-prometheus-prometheus.monitoring:9090
+            isDefault: true
+
+    resources:
+      requests: { cpu: "100m", memory: "256Mi" }
+      limits:   { cpu: "500m", memory: "512Mi" }
+
+  # ── AlertManager ───────────────────────────────────────────
+  alertmanager:
+    enabled: true
+    alertmanagerSpec:
+      storage:
+        volumeClaimTemplate:
+          spec:
+            accessModes: ["ReadWriteOnce"]
+            resources:
+              requests:
+                storage: 5Gi
+
+    config:
+      global:
+        resolve_timeout: 5m
+        smtp_smarthost: "smtp.gmail.com:587"
+        smtp_from: "finops-alerts@gmail.com"
+        smtp_auth_username: "finops-alerts@gmail.com"
+        smtp_auth_password: "your-app-password"   # Use k8s secret in prod
+
+      route:
+        group_by: ["alertname", "namespace"]
+        group_wait: 30s
+        group_interval: 5m
+        repeat_interval: 12h
+        receiver: finops-team
+        routes:
+          - match:
+              severity: critical
+            receiver: finops-pagerduty
+          - match:
+              severity: warning
+            receiver: finops-team
+
+      receivers:
+        - name: finops-team
+          email_configs:
+            - to: "your-team@company.com"
+              subject: "[FinOps Alert] {{ .GroupLabels.alertname }}"
+              body: |
+                {{ range .Alerts }}
+                Alert: {{ .Annotations.summary }}
+                Description: {{ .Annotations.description }}
+                Severity: {{ .Labels.severity }}
+                {{ end }}
+
+        - name: finops-pagerduty
+          pagerduty_configs:
+            - routing_key: "YOUR_PAGERDUTY_KEY"
+              description: "{{ .CommonAnnotations.summary }}"
+
+  # ── Custom Alert Rules ──────────────────────────────────────
+  additionalPrometheusRulesMap:
+    finops-rules:
+      groups:
+        - name: finops.backend
+          rules:
+            - alert: FinOpsBackendDown
+              expr: up{job="finops-backend"} == 0
+              for: 1m
+              labels:
+                severity: critical
+              annotations:
+                summary: "FinOps backend is down"
+                description: "FinOps backend pod {{ $labels.pod }} has been down for > 1 minute."
+
+            - alert: FinOpsHighLatency
+              expr: histogram_quantile(0.99, rate(http_request_duration_seconds_bucket{job="finops-backend"}[5m])) > 2
+              for: 5m
+              labels:
+                severity: warning
+              annotations:
+                summary: "FinOps API high latency"
+                description: "99th percentile latency is {{ $value }}s"
+
+            - alert: FinOpsHighErrorRate
+              expr: rate(http_requests_total{job="finops-backend",status=~"5.."}[5m]) > 0.1
+              for: 5m
+              labels:
+                severity: warning
+              annotations:
+                summary: "FinOps API high error rate"
+                description: "Error rate is {{ $value }} req/s"
+
+        - name: finops.kubernetes
+          rules:
+            - alert: PodCrashLooping
+              expr: rate(kube_pod_container_status_restarts_total{namespace="finops"}[15m]) > 0
+              for: 5m
+              labels:
+                severity: critical
+              annotations:
+                summary: "Pod crash looping in finops namespace"
+                description: "Pod {{ $labels.pod }} is crash looping"
+
+            - alert: HPAMaxedOut
+              expr: kube_horizontalpodautoscaler_status_current_replicas{namespace="finops"} == kube_horizontalpodautoscaler_spec_max_replicas{namespace="finops"}
+              for: 10m
+              labels:
+                severity: warning
+              annotations:
+                summary: "HPA at max replicas"
+                description: "{{ $labels.horizontalpodautoscaler }} is at max replicas"
+
+  # ── Node Exporter ───────────────────────────────────────────
+  nodeExporter:
+    enabled: true
+
+  # ── Kube State Metrics ──────────────────────────────────────
+  kubeStateMetrics:
+    enabled: true

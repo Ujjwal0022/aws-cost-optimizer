@@ -1,0 +1,218 @@
+name: FinOps — Full CI/CD Pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  AWS_REGION:   ${{ secrets.AWS_REGION }}
+  ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
+  IMAGE_TAG:    ${{ github.sha }}
+
+jobs:
+  # ─────────────────────────────────────────────────────
+  # 1. BUILD
+  # ─────────────────────────────────────────────────────
+  build:
+    name: 🐳 Build Docker Images
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id:     ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region:            ${{ env.AWS_REGION }}
+
+      - name: Login to ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build backend
+        run: docker build -t $ECR_REGISTRY/finops-backend:$IMAGE_TAG ./backend
+
+      - name: Build frontend
+        run: |
+          docker build \
+            --build-arg REACT_APP_API_URL=/api \
+            -t $ECR_REGISTRY/finops-frontend:$IMAGE_TAG ./frontend
+
+      - name: Save images
+        run: |
+          docker save $ECR_REGISTRY/finops-backend:$IMAGE_TAG  | gzip > backend.tar.gz
+          docker save $ECR_REGISTRY/finops-frontend:$IMAGE_TAG | gzip > frontend.tar.gz
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: docker-images
+          path: "*.tar.gz"
+          retention-days: 1
+
+  # ─────────────────────────────────────────────────────
+  # 2. SECURITY SCAN (Trivy)
+  # ─────────────────────────────────────────────────────
+  security-scan:
+    name: 🔒 Trivy Security Scan
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: docker-images
+
+      - name: Load images
+        run: |
+          docker load < backend.tar.gz
+          docker load < frontend.tar.gz
+
+      - name: Scan backend — CRITICAL only (fails pipeline)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref:      ${{ env.ECR_REGISTRY }}/finops-backend:${{ env.IMAGE_TAG }}
+          format:         table
+          exit-code:      1
+          severity:       CRITICAL
+          ignore-unfixed: true
+
+      - name: Scan frontend — HIGH+CRITICAL (warning only)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref:  ${{ env.ECR_REGISTRY }}/finops-frontend:${{ env.IMAGE_TAG }}
+          format:     sarif
+          output:     trivy-frontend.sarif
+          exit-code:  0
+          severity:   HIGH,CRITICAL
+
+      - uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: trivy-frontend.sarif
+
+  # ─────────────────────────────────────────────────────
+  # 3. PUSH TO ECR
+  # ─────────────────────────────────────────────────────
+  push:
+    name: 📦 Push to ECR
+    runs-on: ubuntu-latest
+    needs: [build, security-scan]
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: docker-images
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id:     ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region:            ${{ env.AWS_REGION }}
+
+      - name: Login to ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Load + Push images
+        run: |
+          docker load < backend.tar.gz
+          docker load < frontend.tar.gz
+
+          # Push with commit SHA tag
+          docker push $ECR_REGISTRY/finops-backend:$IMAGE_TAG
+          docker push $ECR_REGISTRY/finops-frontend:$IMAGE_TAG
+
+          # Also tag as latest
+          docker tag $ECR_REGISTRY/finops-backend:$IMAGE_TAG  $ECR_REGISTRY/finops-backend:latest
+          docker tag $ECR_REGISTRY/finops-frontend:$IMAGE_TAG $ECR_REGISTRY/finops-frontend:latest
+          docker push $ECR_REGISTRY/finops-backend:latest
+          docker push $ECR_REGISTRY/finops-frontend:latest
+
+          echo "✅ Pushed: $ECR_REGISTRY/finops-backend:$IMAGE_TAG"
+          echo "✅ Pushed: $ECR_REGISTRY/finops-frontend:$IMAGE_TAG"
+
+  # ─────────────────────────────────────────────────────
+  # 4. UPDATE HELM + ARGOCD SYNC
+  # ─────────────────────────────────────────────────────
+  deploy:
+    name: 🚀 Deploy via ArgoCD
+    runs-on: ubuntu-latest
+    needs: push
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update image tags in Helm values
+        run: |
+          # Update backend image tag
+          sed -i "s|tag: .*  # backend|tag: $IMAGE_TAG  # backend|" helm/finops/values.yaml
+          # Update frontend image tag
+          sed -i "s|tag: .*  # frontend|tag: $IMAGE_TAG  # frontend|" helm/finops/values.yaml
+
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add helm/finops/values.yaml
+          git diff --staged --quiet || git commit -m "ci: deploy $IMAGE_TAG [skip ci]"
+          git push
+
+      - name: Install ArgoCD CLI
+        run: |
+          curl -sSL -o /usr/local/bin/argocd \
+            https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
+          chmod +x /usr/local/bin/argocd
+
+      - name: ArgoCD sync + wait
+        run: |
+          argocd login ${{ secrets.ARGOCD_SERVER }} \
+            --username admin \
+            --password ${{ secrets.ARGOCD_PASSWORD }} \
+            --insecure
+
+          argocd app sync finops-app --timeout 120
+          argocd app wait finops-app --health --timeout 180
+
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          argocd app get finops-app
+          echo "✅ Deploy complete — $IMAGE_TAG"
+
+  # ─────────────────────────────────────────────────────
+  # 5. POST-DEPLOY SMOKE TEST
+  # ─────────────────────────────────────────────────────
+  smoke-test:
+    name: 🧪 Smoke Test
+    runs-on: ubuntu-latest
+    needs: deploy
+    steps:
+      - name: Configure AWS
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id:     ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region:            ${{ env.AWS_REGION }}
+
+      - name: Get ALB URL
+        id: alb
+        run: |
+          URL=$(aws elbv2 describe-load-balancers \
+            --query "LoadBalancers[?contains(LoadBalancerName,'finops')].DNSName" \
+            --output text)
+          echo "url=http://$URL" >> $GITHUB_OUTPUT
+
+      - name: Health check
+        run: |
+          sleep 30  # wait for ALB to settle
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" ${{ steps.alb.outputs.url }}/health)
+          if [ "$STATUS" != "200" ]; then
+            echo "❌ Health check failed — HTTP $STATUS"
+            exit 1
+          fi
+          echo "✅ Health check passed — HTTP $STATUS"
+
+      - name: API smoke test
+        run: |
+          curl -f ${{ steps.alb.outputs.url }}/api/resources/recommendations | \
+            python3 -c "import sys,json; d=json.load(sys.stdin); print(f'✅ API OK — {len(d[\"recommendations\"])} recommendations')"

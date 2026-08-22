@@ -1,0 +1,57 @@
+global:
+  namespace: finops
+  environment: prod
+
+backend:
+  name: finops-backend
+  image:
+    repository: ""   # YOUR_ACCOUNT.dkr.ecr.us-east-1.amazonaws.com/finops-backend
+    tag: latest
+    pullPolicy: Always
+  replicas: 2
+  port: 8000
+  resources:
+    requests: { cpu: "100m", memory: "256Mi" }
+    limits:   { cpu: "500m", memory: "512Mi" }
+  hpa:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 6
+    cpuThreshold: 70
+  secretName: finops-aws-secret
+  env:
+    AWS_DEFAULT_REGION: "us-east-1"
+    CORS_ORIGINS: "*"
+
+frontend:
+  name: finops-frontend
+  image:
+    repository: ""   # YOUR_ACCOUNT.dkr.ecr.us-east-1.amazonaws.com/finops-frontend
+    tag: latest
+    pullPolicy: Always
+  replicas: 2
+  port: 80
+  resources:
+    requests: { cpu: "50m",  memory: "128Mi" }
+    limits:   { cpu: "200m", memory: "256Mi" }
+  hpa:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 4
+    cpuThreshold: 70
+
+ingress:
+  enabled: true
+  # AWS ALB Ingress
+  annotations:
+    kubernetes.io/ingress.class: alb
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/healthcheck-path: /health
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80}]'
+    alb.ingress.kubernetes.io/group.name: finops
+  host: ""   # Leave blank → ALB auto-assigns DNS
+
+serviceAccount:
+  create: true
+  name: finops-sa

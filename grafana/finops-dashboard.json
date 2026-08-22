@@ -1,0 +1,128 @@
+{
+  "title": "FinOps Cost Optimizer — Overview",
+  "uid": "finops-overview",
+  "tags": ["finops", "aws", "cost"],
+  "timezone": "browser",
+  "schemaVersion": 38,
+  "refresh": "30s",
+  "panels": [
+    {
+      "id": 1,
+      "title": "Backend — Request Rate",
+      "type": "stat",
+      "gridPos": { "x": 0, "y": 0, "w": 6, "h": 4 },
+      "targets": [{
+        "expr": "sum(rate(http_requests_total{job=\"finops-backend\"}[5m]))",
+        "legendFormat": "req/s"
+      }],
+      "options": { "colorMode": "background", "graphMode": "area" },
+      "fieldConfig": { "defaults": { "unit": "reqps", "thresholds": {
+        "steps": [
+          { "color": "green", "value": null },
+          { "color": "yellow", "value": 10 },
+          { "color": "red", "value": 50 }
+        ]
+      }}}
+    },
+    {
+      "id": 2,
+      "title": "Backend — Error Rate",
+      "type": "stat",
+      "gridPos": { "x": 6, "y": 0, "w": 6, "h": 4 },
+      "targets": [{
+        "expr": "sum(rate(http_requests_total{job=\"finops-backend\",status=~\"5..\"}[5m]))",
+        "legendFormat": "errors/s"
+      }],
+      "options": { "colorMode": "background" },
+      "fieldConfig": { "defaults": { "unit": "reqps", "thresholds": {
+        "steps": [
+          { "color": "green", "value": null },
+          { "color": "red", "value": 0.1 }
+        ]
+      }}}
+    },
+    {
+      "id": 3,
+      "title": "Backend — P99 Latency",
+      "type": "stat",
+      "gridPos": { "x": 12, "y": 0, "w": 6, "h": 4 },
+      "targets": [{
+        "expr": "histogram_quantile(0.99, rate(http_request_duration_seconds_bucket{job=\"finops-backend\"}[5m]))",
+        "legendFormat": "p99"
+      }],
+      "fieldConfig": { "defaults": { "unit": "s", "thresholds": {
+        "steps": [
+          { "color": "green", "value": null },
+          { "color": "yellow", "value": 0.5 },
+          { "color": "red", "value": 2 }
+        ]
+      }}}
+    },
+    {
+      "id": 4,
+      "title": "Pod Count — finops namespace",
+      "type": "stat",
+      "gridPos": { "x": 18, "y": 0, "w": 6, "h": 4 },
+      "targets": [{
+        "expr": "count(kube_pod_info{namespace=\"finops\"})",
+        "legendFormat": "pods"
+      }],
+      "options": { "colorMode": "background", "graphMode": "none" }
+    },
+    {
+      "id": 5,
+      "title": "Request Rate Over Time",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 4, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "sum(rate(http_requests_total{job=\"finops-backend\",status!~\"5..\"}[5m]))",
+          "legendFormat": "2xx req/s"
+        },
+        {
+          "expr": "sum(rate(http_requests_total{job=\"finops-backend\",status=~\"5..\"}[5m]))",
+          "legendFormat": "5xx errors/s"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "reqps" }}
+    },
+    {
+      "id": 6,
+      "title": "CPU Usage — finops pods",
+      "type": "timeseries",
+      "gridPos": { "x": 12, "y": 4, "w": 12, "h": 8 },
+      "targets": [{
+        "expr": "sum(rate(container_cpu_usage_seconds_total{namespace=\"finops\",container!=\"\"}[5m])) by (pod)",
+        "legendFormat": "{{ pod }}"
+      }],
+      "fieldConfig": { "defaults": { "unit": "cores" }}
+    },
+    {
+      "id": 7,
+      "title": "Memory Usage — finops pods",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 12, "w": 12, "h": 8 },
+      "targets": [{
+        "expr": "sum(container_memory_working_set_bytes{namespace=\"finops\",container!=\"\"}) by (pod)",
+        "legendFormat": "{{ pod }}"
+      }],
+      "fieldConfig": { "defaults": { "unit": "bytes" }}
+    },
+    {
+      "id": 8,
+      "title": "HPA — Current vs Max Replicas",
+      "type": "timeseries",
+      "gridPos": { "x": 12, "y": 12, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "kube_horizontalpodautoscaler_status_current_replicas{namespace=\"finops\"}",
+          "legendFormat": "current — {{ horizontalpodautoscaler }}"
+        },
+        {
+          "expr": "kube_horizontalpodautoscaler_spec_max_replicas{namespace=\"finops\"}",
+          "legendFormat": "max — {{ horizontalpodautoscaler }}"
+        }
+      ]
+    }
+  ]
+}

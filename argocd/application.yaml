@@ -1,0 +1,59 @@
+# ArgoCD Application — FinOps App
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: finops-app
+  namespace: argocd
+  finalizers: [resources-finalizer.argocd.argoproj.io]
+spec:
+  project: finops-project
+  source:
+    repoURL: https://github.com/YOUR_USERNAME/finops-cost-optimizer
+    targetRevision: main
+    path: helm/finops
+    helm:
+      valueFiles: [values.yaml]
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: finops
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - PruneLast=true
+    retry:
+      limit: 3
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 1m
+---
+# ArgoCD Application — Monitoring Stack
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: finops-monitoring
+  namespace: argocd
+  finalizers: [resources-finalizer.argocd.argoproj.io]
+spec:
+  project: finops-project
+  source:
+    repoURL: https://github.com/YOUR_USERNAME/finops-cost-optimizer
+    targetRevision: main
+    path: helm/monitoring
+    helm:
+      valueFiles: [values.yaml]
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+    retry:
+      limit: 3
+      backoff: { duration: 10s, factor: 2, maxDuration: 2m }
