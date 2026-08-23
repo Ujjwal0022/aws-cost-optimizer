@@ -6,27 +6,13 @@ terraform {
   required_providers {
     aws = { source = "hashicorp/aws", version = "~> 5.0" }
     helm = { source = "hashicorp/helm", version = "~> 2.12" }
-    kubectl = { source = "gavinbunney/kubectl", version = "~> 1.14" }
-  }
-  backend "s3" {
-    bucket = "finops-terraform-state"
-    key    = "eks/terraform.tfstate"
-    region = "us-east-1"
   }
 }
 
-provider "aws" { region = var.aws_region }
-
-provider "helm" {
-  kubernetes {
-    host                   = module.eks.cluster_endpoint
-    cluster_ca_certificate = base64decode(module.eks.cluster_certificate_authority_data)
-    exec {
-      api_version = "client.authentication.k8s.io/v1beta1"
-      command     = "aws"
-      args        = ["eks", "get-token", "--cluster-name", module.eks.cluster_name]
-    }
-  }
+provider "aws" {
+  region     = var.aws_region
+  access_key = var.aws_access_key_id
+  secret_key = var.aws_secret_access_key
 }
 
 # ── VPC ──────────────────────────────────────────────────────
@@ -63,17 +49,16 @@ module "eks" {
   version = "~> 20.0"
 
   cluster_name    = var.cluster_name
-  cluster_version = "1.29"
+  cluster_version = "1.36"
 
   vpc_id                         = module.vpc.vpc_id
-  subnet_ids                     = module.vpc.private_subnet_ids
+  subnet_ids                     = module.vpc.private_subnets
   cluster_endpoint_public_access = true
 
   cluster_addons = {
-    coredns    = { most_recent = true }
-    kube-proxy = { most_recent = true }
-    vpc-cni    = { most_recent = true }
-    aws-ebs-csi-driver = { most_recent = true }
+    coredns            = { most_recent = true }
+    kube-proxy         = { most_recent = true }
+    vpc-cni            = { most_recent = true }
   }
 
   eks_managed_node_groups = {
@@ -106,6 +91,18 @@ module "alb_controller_irsa" {
 }
 
 # ── AWS Load Balancer Controller (Helm) ──────────────────────
+provider "helm" {
+    kubernetes {
+    host                   = module.eks.cluster_endpoint
+    cluster_ca_certificate = base64decode(module.eks.cluster_certificate_authority_data)
+    exec   {
+      api_version = "client.authentication.k8s.io/v1beta1"
+      command     = "aws"
+      args        = ["eks", "get-token", "--cluster-name", module.eks.cluster_name]
+    }
+  }
+}
+
 resource "helm_release" "alb_controller" {
   name       = "aws-load-balancer-controller"
   repository = "https://aws.github.io/eks-charts"
@@ -113,11 +110,25 @@ resource "helm_release" "alb_controller" {
   namespace  = "kube-system"
   version    = "1.7.1"
 
-  set { name = "clusterName";              value = module.eks.cluster_name }
-  set { name = "serviceAccount.create";   value = "true" }
-  set { name = "serviceAccount.name";     value = "aws-load-balancer-controller" }
-  set { name = "serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn"
-        value = module.alb_controller_irsa.iam_role_arn }
+  set  {
+    name  = "clusterName"
+    value = module.eks.cluster_name
+  }
+
+  set {
+    name  = "serviceAccount.create"
+    value = "true"
+  }
+
+  set {
+    name  = "serviceAccount.name"
+    value = "aws-load-balancer-controller"
+  }
+
+  set {
+    name  = "serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn"
+    value = module.alb_controller_irsa.iam_role_arn
+  }
 
   depends_on = [module.eks]
 }
@@ -126,13 +137,21 @@ resource "helm_release" "alb_controller" {
 resource "aws_ecr_repository" "backend" {
   name                 = "finops-backend"
   image_tag_mutability = "MUTABLE"
-  image_scanning_configuration { scan_on_push = true }
+
+  image_scanning_configuration {
+    scan_on_push = true
+  }
+
   tags = { Project = "finops" }
 }
 
 resource "aws_ecr_repository" "frontend" {
   name                 = "finops-frontend"
   image_tag_mutability = "MUTABLE"
-  image_scanning_configuration { scan_on_push = true }
+
+  image_scanning_configuration {
+    scan_on_push = true
+  }
+
   tags = { Project = "finops" }
 }
