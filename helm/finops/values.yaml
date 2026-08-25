@@ -5,7 +5,7 @@ global:
 backend:
   name: finops-backend
   image:
-    repository: ""   # YOUR_ACCOUNT.dkr.ecr.us-east-1.amazonaws.com/finops-backend
+    repository: "279251428090.dkr.ecr.us-east-1.amazonaws.com/finops-backend"   # YOUR_ACCOUNT.dkr.ecr.us-east-1.amazonaws.com/finops-backend
     tag: latest
     pullPolicy: Always
   replicas: 2
@@ -26,7 +26,7 @@ backend:
 frontend:
   name: finops-frontend
   image:
-    repository: ""   # YOUR_ACCOUNT.dkr.ecr.us-east-1.amazonaws.com/finops-frontend
+    repository: "279251428090.dkr.ecr.us-east-1.amazonaws.com/finops-frontend"   # YOUR_ACCOUNT.dkr.ecr.us-east-1.amazonaws.com/finops-frontend
     tag: latest
     pullPolicy: Always
   replicas: 2

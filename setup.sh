@@ -5,7 +5,7 @@
 set -e
 CLUSTER="finops-eks"
 REGION="${AWS_REGION:-us-east-1}"
-REPO="https://github.com/YOUR_USERNAME/finops-cost-optimizer"
+REPO="https://github.com/Ujjwal-0022/aws-cost-optimizer"
 
 RED='\033[0;31m'; GREEN='\033[0;32m'; BLUE='\033[0;34m'; NC='\033[0m'
 log()  { echo -e "${BLUE}[INFO]${NC} $1"; }
