@@ -3,33 +3,52 @@ name: FinOps — Full CI/CD Pipeline
 on:
   push:
     branches: [main]
+
   pull_request:
     branches: [main]
+
   workflow_dispatch:
 
-# Required for SARIF upload + repository access
+
+# =========================================================
+# GLOBAL PERMISSIONS
+# =========================================================
+
 permissions:
   contents: read
   actions: read
   security-events: write
+
+
+# =========================================================
+# GLOBAL ENVIRONMENT
+# =========================================================
 
 env:
   AWS_REGION: ${{ secrets.AWS_REGION }}
   ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
   IMAGE_TAG: ${{ github.sha }}
 
+
+# =========================================================
+# JOBS
+# =========================================================
+
 jobs:
 
-  # ─────────────────────────────────────────────────────
+  # =======================================================
   # 1. BUILD
-  # ─────────────────────────────────────────────────────
+  # =======================================================
+
   build:
     name: 🐳 Build Docker Images
     runs-on: ubuntu-latest
 
     steps:
+
       - name: Checkout
         uses: actions/checkout@v4
+
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -38,14 +57,25 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
+
       - name: Login to ECR
         uses: aws-actions/amazon-ecr-login@v2
+
+
+      # ---------------------------------------------------
+      # Backend
+      # ---------------------------------------------------
 
       - name: Build backend
         run: |
           docker build \
             -t $ECR_REGISTRY/finops-backend:$IMAGE_TAG \
             ./backend
+
+
+      # ---------------------------------------------------
+      # Frontend
+      # ---------------------------------------------------
 
       - name: Build frontend
         run: |
@@ -54,10 +84,25 @@ jobs:
             -t $ECR_REGISTRY/finops-frontend:$IMAGE_TAG \
             ./frontend
 
+
+      # ---------------------------------------------------
+      # Save images
+      # ---------------------------------------------------
+
       - name: Save images
         run: |
-          docker save $ECR_REGISTRY/finops-backend:$IMAGE_TAG | gzip > backend.tar.gz
-          docker save $ECR_REGISTRY/finops-frontend:$IMAGE_TAG | gzip > frontend.tar.gz
+          docker save \
+            $ECR_REGISTRY/finops-backend:$IMAGE_TAG \
+            | gzip > backend.tar.gz
+
+          docker save \
+            $ECR_REGISTRY/finops-frontend:$IMAGE_TAG \
+            | gzip > frontend.tar.gz
+
+
+      # ---------------------------------------------------
+      # Upload images as artifact
+      # ---------------------------------------------------
 
       - name: Upload Docker images
         uses: actions/upload-artifact@v4
@@ -69,26 +114,34 @@ jobs:
           retention-days: 1
 
 
-  # ─────────────────────────────────────────────────────
+  # =======================================================
   # 2. SECURITY SCAN
-  # ─────────────────────────────────────────────────────
+  # =======================================================
+
   security-scan:
     name: 🔒 Trivy Security Scan
     runs-on: ubuntu-latest
+
     needs: build
 
     steps:
+
       - name: Download Docker images
         uses: actions/download-artifact@v4
         with:
           name: docker-images
+
 
       - name: Load images
         run: |
           docker load < backend.tar.gz
           docker load < frontend.tar.gz
 
-      # Backend: CRITICAL vulnerability = pipeline FAIL
+
+      # ---------------------------------------------------
+      # Backend - CRITICAL vulnerabilities fail pipeline
+      # ---------------------------------------------------
+
       - name: Scan backend — CRITICAL only
         uses: aquasecurity/trivy-action@master
         with:
@@ -98,8 +151,11 @@ jobs:
           severity: CRITICAL
           ignore-unfixed: true
 
-      # Frontend: HIGH + CRITICAL
-      # Warning only, does NOT fail pipeline
+
+      # ---------------------------------------------------
+      # Frontend - warning only
+      # ---------------------------------------------------
+
       - name: Scan frontend — HIGH + CRITICAL
         uses: aquasecurity/trivy-action@master
         with:
@@ -110,9 +166,11 @@ jobs:
           severity: HIGH,CRITICAL
           ignore-unfixed: true
 
-      # Upload Trivy SARIF to GitHub Code Scanning
-      # Only upload on push because fork PRs may not have
-      # permission to write security-events.
+
+      # ---------------------------------------------------
+      # Upload SARIF
+      # ---------------------------------------------------
+
       - name: Upload Trivy SARIF
         if: always() && github.event_name == 'push'
         uses: github/codeql-action/upload-sarif@v4
@@ -121,9 +179,10 @@ jobs:
           category: trivy-frontend
 
 
-  # ─────────────────────────────────────────────────────
+  # =======================================================
   # 3. PUSH TO ECR
-  # ─────────────────────────────────────────────────────
+  # =======================================================
+
   push:
     name: 📦 Push to ECR
     runs-on: ubuntu-latest
@@ -135,10 +194,12 @@ jobs:
     if: github.ref == 'refs/heads/main'
 
     steps:
+
       - name: Download Docker images
         uses: actions/download-artifact@v4
         with:
           name: docker-images
+
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -147,41 +208,76 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
+
       - name: Login to ECR
         uses: aws-actions/amazon-ecr-login@v2
 
+
+      # ---------------------------------------------------
+      # Load + Push
+      # ---------------------------------------------------
+
       - name: Load and Push images
         run: |
+
           docker load < backend.tar.gz
           docker load < frontend.tar.gz
 
-          # Push SHA tags
-          docker push $ECR_REGISTRY/finops-backend:$IMAGE_TAG
-          docker push $ECR_REGISTRY/finops-frontend:$IMAGE_TAG
+          echo "🚀 Pushing backend image..."
 
-          # Create latest tags
+          docker push \
+            $ECR_REGISTRY/finops-backend:$IMAGE_TAG
+
+
+          echo "🚀 Pushing frontend image..."
+
+          docker push \
+            $ECR_REGISTRY/finops-frontend:$IMAGE_TAG
+
+
+          # ------------------------------------------------
+          # Backend latest
+          # ------------------------------------------------
+
           docker tag \
             $ECR_REGISTRY/finops-backend:$IMAGE_TAG \
             $ECR_REGISTRY/finops-backend:latest
+
+
+          # ------------------------------------------------
+          # Frontend latest
+          # ------------------------------------------------
 
           docker tag \
             $ECR_REGISTRY/finops-frontend:$IMAGE_TAG \
             $ECR_REGISTRY/finops-frontend:latest
 
-          # Push latest
-          docker push $ECR_REGISTRY/finops-backend:latest
-          docker push $ECR_REGISTRY/finops-frontend:latest
 
+          # ------------------------------------------------
+          # Push latest
+          # ------------------------------------------------
+
+          docker push \
+            $ECR_REGISTRY/finops-backend:latest
+
+          docker push \
+            $ECR_REGISTRY/finops-frontend:latest
+
+
+          echo "========================================"
           echo "✅ Backend pushed"
           echo "✅ Frontend pushed"
           echo "IMAGE TAG: $IMAGE_TAG"
+          echo "========================================"
 
 
-  # ─────────────────────────────────────────────────────
+  # =======================================================
   # 4. UPDATE HELM + ARGOCD
-  # ─────────────────────────────────────────────────────
+  # =======================================================
+
   deploy:
     name: 🚀 Deploy via ArgoCD
+
     runs-on: ubuntu-latest
 
     needs: push
@@ -193,66 +289,202 @@ jobs:
 
     steps:
 
+      # ---------------------------------------------------
+      # Checkout repository
+      # ---------------------------------------------------
+
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+
+      # ---------------------------------------------------
+      # Update Helm image tags
+      # ---------------------------------------------------
 
       - name: Update image tags in Helm values
         run: |
-          sed -i "s|tag: .*  # backend|tag: $IMAGE_TAG  # backend|" helm/finops/values.yaml
-          sed -i "s|tag: .*  # frontend|tag: $IMAGE_TAG  # frontend|" helm/finops/values.yaml
+
+          echo "Updating Helm image tags..."
+
+          sed -i \
+            "s|tag: .*  # backend|tag: $IMAGE_TAG  # backend|" \
+            helm/finops/values.yaml
+
+          sed -i \
+            "s|tag: .*  # frontend|tag: $IMAGE_TAG  # frontend|" \
+            helm/finops/values.yaml
+
+
+          echo "Updated values.yaml:"
+
+          cat helm/finops/values.yaml
+
+
+      # ---------------------------------------------------
+      # Commit Helm changes
+      # ---------------------------------------------------
+
+      - name: Commit and push Helm changes
+        run: |
 
           git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git config user.email \
+            "github-actions[bot]@users.noreply.github.com"
 
           git add helm/finops/values.yaml
 
-          if ! git diff --staged --quiet; then
-            git commit -m "ci: deploy $IMAGE_TAG [skip ci]"
-            git push
+
+          if git diff --staged --quiet; then
+
+            echo "No Helm changes detected."
+
           else
-            echo "No Helm changes detected"
+
+            git commit \
+              -m "ci: deploy $IMAGE_TAG [skip ci]"
+
+            git push origin HEAD:main
+
           fi
+
+
+          # Get the exact commit ArgoCD must deploy
+
+          git fetch origin main
+
+          DEPLOY_REVISION=$(git rev-parse origin/main)
+
+          echo "========================================"
+          echo "🚀 Deploy revision:"
+          echo "$DEPLOY_REVISION"
+          echo "========================================"
+
+          echo "DEPLOY_REVISION=$DEPLOY_REVISION" >> "$GITHUB_ENV"
+
+
+      # ---------------------------------------------------
+      # Install ArgoCD CLI
+      # ---------------------------------------------------
 
       - name: Install ArgoCD CLI
         run: |
-          curl -sSL \
+
+          curl -fsSL \
             -o /usr/local/bin/argocd \
             https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
 
           chmod +x /usr/local/bin/argocd
 
-      - name: ArgoCD sync + wait
+          argocd version --client
+
+
+      # ---------------------------------------------------
+      # ArgoCD login
+      # ---------------------------------------------------
+
+      - name: Login to ArgoCD
         run: |
-          argocd login "${{ secrets.ARGOCD_SERVER }}" \
+
+          argocd login \
+            "${{ secrets.ARGOCD_SERVER }}" \
             --username admin \
             --password "${{ secrets.ARGOCD_PASSWORD }}" \
             --insecure
 
-          argocd app sync finops-app --timeout 120
+          echo "✅ ArgoCD login successful"
+
+
+      # ---------------------------------------------------
+      # Refresh ArgoCD application
+      # ---------------------------------------------------
+
+      - name: Refresh ArgoCD application
+        run: |
+
+          echo "🔄 Refreshing finops-app..."
+
+          argocd app get finops-app \
+            --refresh
+
+          echo "✅ ArgoCD refresh completed"
+
+
+      # ---------------------------------------------------
+      # Sync exact Git revision
+      # ---------------------------------------------------
+
+      - name: ArgoCD sync
+        run: |
+
+          echo "========================================"
+          echo "🚀 Syncing ArgoCD application"
+          echo "Application: finops-app"
+          echo "Revision: $DEPLOY_REVISION"
+          echo "========================================"
+
+          argocd app sync finops-app \
+            --revision "$DEPLOY_REVISION" \
+            --timeout 300
+
+
+      # ---------------------------------------------------
+      # Wait for Sync + Healthy
+      # ---------------------------------------------------
+
+      - name: Wait for ArgoCD health
+        run: |
+
+          echo "========================================"
+          echo "⏳ Waiting for application health..."
+          echo "Timeout: 600 seconds"
+          echo "========================================"
 
           argocd app wait finops-app \
+            --sync \
             --health \
-            --timeout 180
+            --timeout 600
 
-          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+      # ---------------------------------------------------
+      # Final ArgoCD status
+      # ---------------------------------------------------
+
+      - name: Show ArgoCD status
+        run: |
+
+          echo "========================================"
+          echo "📊 FINAL ARGOCD STATUS"
+          echo "========================================"
+
           argocd app get finops-app
-          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
-          echo "✅ Deploy complete — $IMAGE_TAG"
+          echo "========================================"
+          echo "✅ ArgoCD deployment successful"
+          echo "IMAGE TAG: $IMAGE_TAG"
+          echo "REVISION: $DEPLOY_REVISION"
+          echo "========================================"
 
 
-  # ─────────────────────────────────────────────────────
+  # =======================================================
   # 5. POST DEPLOY SMOKE TEST
-  # ─────────────────────────────────────────────────────
+  # =======================================================
+
   smoke-test:
     name: 🧪 Smoke Test
+
     runs-on: ubuntu-latest
 
     needs: deploy
 
     steps:
+
+      # ---------------------------------------------------
+      # Configure AWS
+      # ---------------------------------------------------
 
       - name: Configure AWS
         uses: aws-actions/configure-aws-credentials@v4
@@ -261,36 +493,85 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
+
+      # ---------------------------------------------------
+      # Get ALB URL
+      # ---------------------------------------------------
+
       - name: Get ALB URL
         id: alb
         run: |
-          URL=$(aws elbv2 describe-load-balancers \
-            --query "LoadBalancers[?contains(LoadBalancerName,'finops')].DNSName" \
-            --output text)
 
-          echo "ALB URL: http://$URL"
+          URL=$(
+            aws elbv2 describe-load-balancers \
+              --query \
+              "LoadBalancers[?contains(LoadBalancerName,'finops')].DNSName" \
+              --output text
+          )
+
+
+          if [ -z "$URL" ] || [ "$URL" = "None" ]; then
+
+            echo "❌ FinOps ALB not found."
+
+            exit 1
+
+          fi
+
+
+          echo "========================================"
+          echo "🌐 ALB URL: http://$URL"
+          echo "========================================"
+
 
           echo "url=http://$URL" >> "$GITHUB_OUTPUT"
 
+
+      # ---------------------------------------------------
+      # Health check
+      # ---------------------------------------------------
+
       - name: Health check
         run: |
-          echo "Waiting for ALB..."
+
+          echo "⏳ Waiting for ALB..."
           sleep 30
 
-          STATUS=$(curl -s \
-            -o /dev/null \
-            -w "%{http_code}" \
-            "${{ steps.alb.outputs.url }}/health")
+
+          STATUS=$(
+            curl -s \
+              -o /dev/null \
+              -w "%{http_code}" \
+              "${{ steps.alb.outputs.url }}/health"
+          )
+
 
           if [ "$STATUS" != "200" ]; then
-            echo "❌ Health check failed — HTTP $STATUS"
+
+            echo "❌ Health check failed"
+            echo "HTTP STATUS: $STATUS"
+
             exit 1
+
           fi
 
-          echo "✅ Health check passed — HTTP $STATUS"
+
+          echo "========================================"
+          echo "✅ Health check passed"
+          echo "HTTP STATUS: $STATUS"
+          echo "========================================"
+
+
+      # ---------------------------------------------------
+      # API smoke test
+      # ---------------------------------------------------
 
       - name: API smoke test
         run: |
+
+          echo "Testing FinOps API..."
+
+
           curl -f \
             "${{ steps.alb.outputs.url }}/api/resources/recommendations" \
             | python3 -c '
@@ -299,8 +580,15 @@ jobs:
 
           data = json.load(sys.stdin)
 
+          recommendations = data.get("recommendations", [])
+
           print(
               f"✅ API OK — "
-              f"{len(data.get(\"recommendations\", []))} recommendations"
+              f"{len(recommendations)} recommendations"
           )
           '
+
+
+          echo "========================================"
+          echo "🎉 SMOKE TEST PASSED"
+          echo "========================================"
