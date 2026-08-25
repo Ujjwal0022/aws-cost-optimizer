@@ -370,9 +370,12 @@ jobs:
       # Install ArgoCD CLI
       # ---------------------------------------------------
 
+            # ---------------------------------------------------
+      # Install ArgoCD CLI
+      # ---------------------------------------------------
+
       - name: Install ArgoCD CLI
         run: |
-
           curl -fsSL \
             -o /usr/local/bin/argocd \
             https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
@@ -383,12 +386,11 @@ jobs:
 
 
       # ---------------------------------------------------
-      # ArgoCD login
+      # Login to ArgoCD
       # ---------------------------------------------------
 
       - name: Login to ArgoCD
         run: |
-
           argocd login \
             "${{ secrets.ARGOCD_SERVER }}" \
             --username admin \
@@ -404,7 +406,6 @@ jobs:
 
       - name: Refresh ArgoCD application
         run: |
-
           echo "🔄 Refreshing finops-app..."
 
           argocd app get finops-app \
@@ -414,33 +415,16 @@ jobs:
 
 
       # ---------------------------------------------------
-      # Sync exact Git revision
+      # Wait for Auto-Sync
       # ---------------------------------------------------
 
-      - name: ArgoCD sync
+      - name: Wait for ArgoCD deployment
         run: |
-
+        
           echo "========================================"
-          echo "🚀 Syncing ArgoCD application"
+          echo "🚀 Waiting for ArgoCD Auto-Sync"
           echo "Application: finops-app"
-          echo "Revision: $DEPLOY_REVISION"
-          echo "========================================"
-
-          argocd app sync finops-app \
-            --revision "$DEPLOY_REVISION" \
-            --timeout 300
-
-
-      # ---------------------------------------------------
-      # Wait for Sync + Healthy
-      # ---------------------------------------------------
-
-      - name: Wait for ArgoCD health
-        run: |
-
-          echo "========================================"
-          echo "⏳ Waiting for application health..."
-          echo "Timeout: 600 seconds"
+          echo "Target Revision: main"
           echo "========================================"
 
           argocd app wait finops-app \
@@ -448,9 +432,13 @@ jobs:
             --health \
             --timeout 600
 
+          echo "========================================"
+          echo "✅ ArgoCD deployment successful"
+          echo "========================================"
+
 
       # ---------------------------------------------------
-      # Final ArgoCD status
+      # Show final ArgoCD status
       # ---------------------------------------------------
 
       - name: Show ArgoCD status
@@ -463,9 +451,8 @@ jobs:
           argocd app get finops-app
 
           echo "========================================"
-          echo "✅ ArgoCD deployment successful"
+          echo "✅ Application is Synced + Healthy"
           echo "IMAGE TAG: $IMAGE_TAG"
-          echo "REVISION: $DEPLOY_REVISION"
           echo "========================================"
 
 
