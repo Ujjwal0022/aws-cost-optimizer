@@ -8,7 +8,7 @@ metadata:
 spec:
   project: finops-project
   source:
-    repoURL: https://github.com/YOUR_USERNAME/finops-cost-optimizer
+    repoURL: https://github.com/Ujjwal0022/aws-cost-optimizer
     targetRevision: main
     path: helm/finops
     helm:
@@ -40,7 +40,7 @@ metadata:
 spec:
   project: finops-project
   source:
-    repoURL: https://github.com/YOUR_USERNAME/finops-cost-optimizer
+    repoURL: https://github.com/Ujjwal-0022/aws-cost-optimizer
     targetRevision: main
     path: helm/monitoring
     helm:
