@@ -1,0 +1,89 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: finops-alerts
+  namespace: finops
+  labels:
+    release: prometheus
+spec:
+  groups:
+    - name: finops.rules
+      rules:
+
+        - alert: FinOpsBackendPodDown
+          expr: |
+            kube_deployment_status_replicas_available{
+              namespace="finops",
+              deployment="finops-backend"
+            } < 1
+          for: 2m
+          labels:
+            severity: critical
+          annotations:
+            summary: "FinOps backend is down"
+            description: "No available replicas for finops-backend."
+
+        - alert: FinOpsFrontendPodDown
+          expr: |
+            kube_deployment_status_replicas_available{
+              namespace="finops",
+              deployment="finops-frontend"
+            } < 1
+          for: 2m
+          labels:
+            severity: critical
+          annotations:
+            summary: "FinOps frontend is down"
+            description: "No available replicas for finops-frontend."
+
+        - alert: FinOpsHighCPU
+          expr: |
+            (
+              sum by (namespace) (
+                rate(container_cpu_usage_seconds_total{
+                  namespace="finops",
+                  container!="",
+                  container!="POD"
+                }[5m])
+              )
+              /
+              sum by (namespace) (
+                kube_pod_container_resource_requests{
+                  namespace="finops",
+                  resource="cpu",
+                  unit="core"
+                }
+              )
+            ) * 100 > 80
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "High CPU usage in FinOps"
+            description: "FinOps namespace CPU usage is above 80%."
+
+        - alert: FinOpsHighMemory
+          expr: |
+            (
+              sum by (namespace) (
+                container_memory_working_set_bytes{
+                  namespace="finops",
+                  container!="",
+                  container!="POD"
+                }
+              )
+              /
+              sum by (namespace) (
+                kube_pod_container_resource_requests{
+                  namespace="finops",
+                  resource="memory",
+                  unit="byte"
+                }
+              )
+            ) * 100 > 80
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "High memory usage in FinOps"
+            description: "FinOps namespace memory usage is above 80%."
