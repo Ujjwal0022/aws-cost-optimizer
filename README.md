@@ -25,6 +25,12 @@
 
 ---
 
+### 🚀 Project Deployment Flow:
+
+![Project Flow](./assets/deployment-flow.gif)
+
+
+
 ## 🚀 Why This Project?
 
 AWS environments can accumulate unnecessary spend through idle resources, oversized infrastructure, unexpected service usage, and weak cost visibility.
