@@ -27,9 +27,101 @@
 
 ### 🚀 Project Deployment Flow:
 
-![Project Flow](./assets/deployment-flow.gif)
+![Project Flow](./assets/deployment-flow.png)
+
+## 🚀 Core FinOps & DevOps Stack
+
+<p align="center">
+  <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/amazonwebservices/amazonwebservices-original-wordmark.svg" width="80" height="80" />
+  <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/terraform/terraform-original.svg" width="70" height="70" />
+  <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/docker/docker-original.svg" width="70" height="70" />
+  <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/kubernetes/kubernetes-plain.svg" width="70" height="70" />
+  <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/githubactions/githubactions-original.svg" width="70" height="70" />
+  <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/helm/helm-original.svg" width="70" height="70" />
+</p>
+
+<p align="center">
+  <strong>AWS • Terraform • Docker • Kubernetes • GitHub Actions • Helm</strong>
+</p>
+
+---
+
+## 🔐 Security & DevSecOps
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/aquasecurity/trivy/main/docs/imgs/logo.png" width="80" height="70" />
+</p>
+
+<p align="center">
+  <strong> • Trivy</strong>
+</p>
+
+---
+
+## ☸️ Kubernetes & Cloud
+
+<table align="center">
+  <tr>
+    <td align="center">
+      <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/kubernetes/kubernetes-plain.svg" width="80" height="80" alt="Kubernetes"/>
+    </td>
+    <td align="center">
+      <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/helm/helm-original.svg" width="80" height="80" alt="Helm"/>
+    </td>
+    <td align="center">
+      <img src="https://cdn.simpleicons.org/argo/EF7B4D" width="80" height="80" alt="ArgoCD"/>
+    </td>
+    <td align="center">
+      <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/amazonwebservices/amazonwebservices-original-wordmark.svg" width="100" height="80" alt="AWS"/>
+    </td>
+  </tr>
+</table>
+
+<p align="center">
+  <strong>Amazon EKS • Helm • ArgoCD • Amazon ECR</strong>
+</p>
 
 
+## 💰 FinOps & AWS Cost Intelligence
+
+<table align="center">
+  <tr>
+    <td align="center">
+      <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/amazonwebservices/amazonwebservices-original-wordmark.svg" width="110" height="80" alt="AWS"/>
+    </td>
+  </tr>
+</table>
+
+<p align="center">
+  <strong>AWS Cost Explorer • AWS Budgets • AWS Resource APIs • Boto3</strong>
+</p>
+
+
+## 📊 Monitoring & Observability
+
+<p align="center">
+  <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/prometheus/prometheus-original.svg" width="80" height="80" />
+  <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/grafana/grafana-original.svg" width="80" height="80" />
+</p>
+
+<p align="center">
+  <strong>Prometheus • Grafana • Kubernetes Metrics • Application Monitoring</strong>
+</p>
+
+
+
+## ⚙️ Application Stack
+
+<p align="center">
+  <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/python/python-original.svg" width="70" height="70" />
+  <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/fastapi/fastapi-original.svg" width="70" height="70" />
+  <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/react/react-original.svg" width="70" height="70" />
+  <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/javascript/javascript-original.svg" width="70" height="70" />
+</p>
+
+<p align="center">
+  <strong>Python • FastAPI • React • JavaScript • REST APIs</strong>
+</p>
 
 ## 🚀 Why This Project?
 
@@ -246,31 +338,6 @@ The backend uses AWS SDK (`boto3`) to query AWS Cost Explorer and AWS Budgets.
                          Budget / Forecast Status
 ```
 
----
-
-## 🛠️ Technology Stack
-
-| Layer                  | Technology                         |
-| ---------------------- | ---------------------------------- |
-| Cloud                  | AWS                                |
-| Infrastructure as Code | Terraform                          |
-| Networking             | Amazon VPC                         |
-| Kubernetes             | Amazon EKS                         |
-| Load Balancing         | AWS Load Balancer Controller / ALB |
-| Container Registry     | Amazon ECR                         |
-| Backend                | FastAPI + Python                   |
-| Frontend               | React + TypeScript + Vite          |
-| Containerization       | Docker                             |
-| Packaging              | Helm                               |
-| GitOps                 | ArgoCD                             |
-| CI/CD                  | GitHub Actions                     |
-| Security               | Trivy                              |
-| Monitoring             | Prometheus                         |
-| Visualization          | Grafana                            |
-| AWS Integration        | Boto3 / Cost Explorer / Budgets    |
-
----
-
 
 ## 📁 Project Structure
 
@@ -316,183 +383,32 @@ aws-cost-optimizer/
 ├── setup.sh
 └── README.md
 ```
-## 🚀 Project Deployment Flow
 
-<p align="center">
-  <img 
-    src="https://your-hosted-gif-url/aws-cost-optimizer-deployment-flow.gif"
-    alt="AWS Cost Optimizer Deployment Flow"
-    width="100%"
-  />
-</p>
----
+## 📸 Screenshots
+### 🖥️ Application Dashboard
+<img width="1917" height="977" alt="image" src="https://github.com/user-attachments/assets/36a7e864-17e4-4964-b800-5f9a5fc4f1f4" />
+
+### ⚙️ GitHub Actions CI/CD Pipeline
+<img width="1917" height="967" alt="image" src="https://github.com/user-attachments/assets/e98af557-7634-4815-8d22-0cdd94d93137" />
+
+### 🚀 ArgoCD GitOps Deployment
+<img width="1901" height="896" alt="Screenshot 2026-08-27 125022" src="https://github.com/user-attachments/assets/2fc8cb6c-e509-4a74-8839-3e23037d9c55" />
 
 
-## ⚙️ Deployment Guide
+<img width="1902" height="916" alt="Screenshot 2026-08-27 125000" src="https://github.com/user-attachments/assets/47bfb1e9-d769-48d0-8626-a7d4f8e2be34" />
 
-### Prerequisites
+## 📊 Monitoring & Observability
 
-Install and configure:
+- **Prometheus** for real-time metrics collection
+- **Grafana** dashboards for Kubernetes and application monitoring
+- Monitored **CPU, memory, pods, nodes, and resource utilization**
+- Implemented **alerting and health monitoring**
+- Enabled observability for **performance tracking and FinOps optimization**
 
-```bash
-aws
-terraform
-kubectl
-helm
-argocd
-```
+<img width="1917" height="812" alt="image" src="https://github.com/user-attachments/assets/e8252210-8e19-4639-bcfb-893db389eb86" />
 
-Make sure the AWS CLI is authenticated with an account that has the permissions required to provision the infrastructure and access Cost Explorer, Budgets, ECR, and EKS resources.
+<img width="1915" height="912" alt="image" src="https://github.com/user-attachments/assets/c687e54d-bddb-4dc8-a094-67606db0e932" />
 
-### 1. Clone the Repository
-
-```bash
-git clone https://github.com/Ujjwal0022/aws-cost-optimizer.git
-cd aws-cost-optimizer
-```
-
-### 2. Provision AWS Infrastructure
-
-```bash
-cd terraform
-terraform init
-terraform plan
-terraform apply
-```
-
-The Terraform layer provisions the FinOps VPC, Amazon EKS cluster, managed worker nodes, AWS Load Balancer Controller integration, and ECR repositories.
-
-### 3. Configure the Application
-
-Create the backend environment file from the example:
-
-```bash
-cd ../backend
-cp .env.example .env
-```
-
-Populate the required AWS configuration values securely.
-
-**Never commit real AWS credentials to the repository.**
-
-### 4. Configure GitHub Secrets
-
-| Secret                  | Purpose                |
-| ----------------------- | ---------------------- |
-| `AWS_ACCESS_KEY_ID`     | AWS authentication     |
-| `AWS_SECRET_ACCESS_KEY` | AWS authentication     |
-| `AWS_REGION`            | Deployment region      |
-| `ECR_REGISTRY`          | ECR registry endpoint  |
-| `ARGOCD_SERVER`         | ArgoCD server endpoint |
-| `ARGOCD_PASSWORD`       | ArgoCD authentication  |
-
-### 5. Deploy
-
-Push to `main`:
-
-```bash
-git add .
-git commit -m "feat: deploy finops platform"
-git push origin main
-```
-
-The pipeline will:
-
-```text
-Build
-  ↓
-Trivy Scan
-  ↓
-Push to ECR
-  ↓
-Update Helm image tags
-  ↓
-ArgoCD Sync
-  ↓
-Health Check
-  ↓
-Smoke Test ✅
-```
-
----
-
-## 🌐 Application Access
-
-After deployment, the platform is exposed through the AWS Application Load Balancer attached to the EKS environment.
-
-Typical endpoints:
-
-```text
-Dashboard   → http://<ALB-DNS>/
-API Docs    → http://<ALB-DNS>/api/docs
-Health      → http://<ALB-DNS>/health
-Grafana     → http://<ALB-DNS>/grafana
-```
-
----
-
-## 📈 Observability
-
-```text
-Application Pods
-      │
-      ▼
- Prometheus
-      │
-      ▼
-  Grafana
-      │
-      ├── Application Metrics
-      ├── Pod / Workload Visibility
-      └── Infrastructure Dashboards
-```
-
-The monitoring layer gives operational visibility into the Kubernetes-hosted platform while the FinOps dashboard focuses on AWS cost and resource intelligence.
-
----
-
-## 🎯 Engineering Highlights
-
-✅ AWS Cost Explorer integration
-✅ AWS Budgets integration
-✅ Cost forecasting and trend analysis
-✅ AWS resource discovery layer
-✅ Terraform-managed AWS infrastructure
-✅ EKS + managed worker nodes
-✅ Dockerized frontend and backend
-✅ Amazon ECR image lifecycle
-✅ Trivy security scanning in CI
-✅ GitHub Actions end-to-end delivery
-✅ Helm-based Kubernetes deployment
-✅ ArgoCD GitOps synchronization
-✅ Prometheus + Grafana observability
-✅ Automated health and smoke testing
-
----
-
-## 💡 What This Project Demonstrates
-
-This project brings together three areas that are often implemented separately:
-
-**FinOps** → Understand where AWS money is going.
-**Platform Engineering** → Run the application reliably on AWS + Kubernetes.
-**DevSecOps / GitOps** → Secure, automate, and continuously deliver changes.
-
-That makes the repository a practical demonstration of:
-
-**Cloud Engineering + DevOps + Kubernetes + FinOps**
-
-rather than a standalone cost dashboard.
-
----
-
-## 📌 Project Status
-
-🚀 **Active Project**
-
-Infrastructure, CI/CD, GitOps, monitoring, and AWS cost-analysis components are maintained in this repository.
-
----
 
 ## 👨‍💻 Author
 
@@ -501,8 +417,6 @@ Infrastructure, CI/CD, GitOps, monitoring, and AWS cost-analysis components are 
 Cloud / DevOps Engineer — AWS • Kubernetes • Terraform • CI/CD • FinOps
 
 GitHub: [@Ujjwal0022](https://github.com/Ujjwal0022)
-
----
 
 ## ⭐ Support
 
