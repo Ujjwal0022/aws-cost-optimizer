@@ -24,6 +24,7 @@
 > A production-oriented FinOps platform that connects AWS cost data, resource inventory, optimization recommendations, containerized services, Kubernetes deployment, GitHub Actions CI/CD, ArgoCD GitOps, and Prometheus/Grafana observability into one workflow.
 
 ---
+### 🌐 [Live Demo →](https://aws-cost-optimizer-nw25-b6k0x8v7e.vercel.app/)
 
 ### 🚀 Project Deployment Flow:
 
