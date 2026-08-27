@@ -410,6 +410,191 @@ aws-cost-optimizer/
 <img width="1915" height="912" alt="image" src="https://github.com/user-attachments/assets/c687e54d-bddb-4dc8-a094-67606db0e932" />
 
 
+## 🚀 Setup Guide — Step by Step
+
+> **Prerequisites:** `aws` `terraform` `kubectl` `helm` `argocd CLI` `docker` installed
+
+---
+
+### Step 1 — Clone the Repository
+
+```bash
+git clone https://github.com/Ujjwal0022/aws-cost-optimizer.git
+cd aws-cost-optimizer
+```
+
+---
+
+### Step 2 — Configure AWS Credentials
+
+```bash
+aws configure
+# AWS Access Key ID:     YOUR_KEY
+# AWS Secret Access Key: YOUR_SECRET
+# Default region:        us-east-1
+# Output format:         json
+```
+
+---
+
+### Step 3 — Provision Infrastructure (Terraform)
+
+```bash
+cd terraform
+terraform init
+terraform plan
+terraform apply    # ~15 minutes
+cd ..
+```
+
+**Creates:**
+- ✅ VPC (public + private subnets)
+- ✅ EKS Cluster `finops-eks` — 2x t3.medium nodes
+- ✅ ECR Repository `finops-app`
+- ✅ IAM Roles for EKS + nodes
+- ✅ AWS ALB Ingress Controller
+
+---
+
+### Step 4 — Connect to EKS
+
+```bash
+aws eks update-kubeconfig --region us-east-1 --name finops-eks
+kubectl get nodes    # Should show Ready
+```
+
+---
+
+### Step 5 — Install ArgoCD + Prometheus + Grafana
+
+```bash
+# ArgoCD
+kubectl create namespace argocd
+kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+kubectl rollout status deploy/argocd-server -n argocd
+
+# Get ArgoCD Password
+kubectl get secret argocd-initial-admin-secret -n argocd \
+  -o jsonpath="{.data.password}" | base64 -d
+
+# Prometheus + Grafana
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+helm repo update
+helm upgrade --install prometheus prometheus-community/kube-prometheus-stack \
+  --namespace monitoring --create-namespace --wait
+```
+
+---
+
+### Step 6 — Add GitHub Secrets
+
+Go to: `GitHub Repo → Settings → Secrets → Actions → New secret`
+
+| Secret | Value |
+|--------|-------|
+| `AWS_ACCESS_KEY_ID` | Your AWS access key |
+| `AWS_SECRET_ACCESS_KEY` | Your AWS secret key |
+| `AWS_REGION` | `us-east-1` |
+| `ECR_REGISTRY` | `ACCOUNT.dkr.ecr.us-east-1.amazonaws.com` |
+| `ARGOCD_SERVER` | ArgoCD LoadBalancer URL |
+| `ARGOCD_PASSWORD` | From Step 5 output |
+
+---
+
+### Step 7 — Build & Push Docker Image to ECR
+
+```bash
+# ECR Login
+aws ecr get-login-password --region us-east-1 | docker login \
+  --username AWS \
+  --password-stdin YOUR_ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com
+
+# Build & Push Frontend
+docker build -t YOUR_ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/finops-app:latest ./frontend
+docker push YOUR_ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/finops-app:latest
+
+# Build & Push Backend
+docker build -t YOUR_ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/finops-backend:latest ./backend
+docker push YOUR_ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/finops-backend:latest
+```
+
+---
+
+### Step 8 — Deploy with Helm
+
+```bash
+helm install finops helm/finops/ \
+  --namespace finops \
+  --create-namespace \
+  --set image.repository=YOUR_ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/finops-app \
+  --set image.tag=latest
+```
+
+---
+
+### Step 9 — Apply ArgoCD App (GitOps)
+
+```bash
+kubectl apply -f argocd/project.yaml
+kubectl apply -f argocd/application.yaml
+```
+
+ArgoCD will now **auto-sync** on every `git push origin main` 🔄
+
+---
+
+### Step 10 — Push & Trigger CI/CD
+
+```bash
+git add .
+git commit -m "deploy: initial setup"
+git push origin main
+```
+
+**GitHub Actions pipeline runs automatically:**
+
+---
+
+### Step 11 — Verify Deployment
+
+```bash
+# Check pods
+kubectl get pods -n finops
+kubectl get pods -n monitoring
+
+# Check services
+kubectl get svc -n finops
+
+# Get ALB URL
+kubectl get ingress -n finops
+```
+
+---
+
+### Access Services
+
+| Service | URL |
+|---------|-----|
+| FinOps Dashboard | `http://<ALB-DNS>/` |
+| API Docs | `http://<ALB-DNS>/api/docs` |
+| ArgoCD | `https://<ARGOCD-LB>/` |
+| Grafana | `http://<ALB-DNS>/grafana` (admin/prom-operator) |
+| Prometheus | `http://<ALB-DNS>/prometheus` |
+
+---
+
+### 🧹 Cleanup
+
+```bash
+# Delete Kubernetes resources
+helm uninstall finops -n finops
+helm uninstall prometheus -n monitoring
+kubectl delete namespace argocd finops monitoring
+
+# Destroy AWS infrastructure (saves cost)
+cd terraform
+terraform destroy
+```
 ## 👨‍💻 Author
 
 **Ujjwal Kumar**
