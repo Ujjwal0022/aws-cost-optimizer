@@ -9,3 +9,6 @@ build/
 *.tfvars
 .DS_Store
 *.pem
+
+.vercel
+.env*
