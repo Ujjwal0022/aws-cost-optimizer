@@ -1,0 +1,14 @@
+[tool.pytest.ini_options]
+testpaths   = ["tests"]
+asyncio_mode = "auto"
+addopts     = "-v --tb=short --no-header -rN"
+filterwarnings = ["ignore::DeprecationWarning"]
+
+[tool.coverage.run]
+source = ["app"]
+omit   = ["tests/*", "app/main.py"]
+
+[tool.coverage.report]
+show_missing = true
+skip_empty   = true
+fail_under   = 70

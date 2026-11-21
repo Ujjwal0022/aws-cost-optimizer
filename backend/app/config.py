@@ -7,7 +7,18 @@ class Settings(BaseSettings):
     AWS_ACCOUNT_ID: str = ""
     CORS_ORIGINS: str = "*"
 
+    # Cognito
+    COGNITO_USER_POOL_ID: str = ""
+    COGNITO_CLIENT_ID: str = ""
+    COGNITO_CLIENT_SECRET: str = ""
+    AWS_REGION: str = "us-east-1"
+
+    # Database & Redis
+    DATABASE_URL: str = ""
+    REDIS_URL: str = "redis://localhost:6379/0"
+
     class Config:
         env_file = ".env"
+        extra = "allow"
 
 settings = Settings()
