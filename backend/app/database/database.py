@@ -16,6 +16,12 @@ DATABASE_URL = os.getenv(
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
+# Force psycopg2 driver — remove any other driver prefix
+if "postgresql+pg8000://" in DATABASE_URL:
+    DATABASE_URL = DATABASE_URL.replace("postgresql+pg8000://", "postgresql+psycopg2://", 1)
+elif "postgresql://" in DATABASE_URL and "+" not in DATABASE_URL:
+    DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+psycopg2://", 1)
+
 engine = create_engine(
     DATABASE_URL,
     pool_pre_ping=True,
