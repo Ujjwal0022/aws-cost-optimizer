@@ -12,7 +12,7 @@
 
 **Production-grade, multi-tenant AWS FinOps automation and governance platform.**
 
-### 🌐 [Live Demo →](https://aws-cost-optimizer-nw25-b6k0x8v7e.vercel.app/)
+### 🌐 [Live Demo →](https://aws-cost-optimizer-nw25-two.vercel.app/)
 
 </div>
 
